@@ -26,25 +26,32 @@ def rgb_hsv(src, dst):
 
     # Prepare
     r, g, b = src[tx, ty, 0], src[tx, ty, 1], src[tx, ty, 2]
-    max_value = max(r, g, b)
-    min_value = min(r, g, b)
-    delta = max_value - min_value
+
+    if r == 255 and g == 255 and b ==255:
+        r = 255
+        g,b = 0, 0
+
+    max_value = np.float64(max(r, g, b))
+    min_value = np.float64(min(r, g, b))
+
+
+    delta = np.float64(max_value - min_value)
 
     # Calculate H 
     if delta == np.uint64(0):
         H = np.uint64(0)
-    if max_value == r:
-        H = 60* ((g-b)/delta%6)
-    if max_value == g:
-        H = 60* ((b-r)/delta+2)
-    if max_value == b:
-        H = 60* ((r-g)/delta+4)
+    elif max_value == r:
+        H = np.float64(60* (((g-b)/delta)%6))
+    elif max_value == g:
+        H = np.float64(60* ((b-r)/delta+2))
+    elif max_value == b:
+        H = np.float64(60* ((r-g)/delta+4))
     
     # Calculate S
     if max_value == np.uint64(0):
         S = np.uint64(0)
-    if max_value != np.uint64(0):
-        S = delta/ max_value
+    elif max_value != np.uint64(0):
+        S = np.float64(delta/ max_value)
 
     V = max_value
 
@@ -69,20 +76,18 @@ def hsv_rgb(src, dst):
     # Conversion
     if (0 <= H < 60):
         r, g, b = V, n, l
-    if (60 <= H < 120):
+    elif (60 <= H < 120):
         r, g, b = m, V, l
-    if (120 <= H < 180):
+    elif (120 <= H < 180):
         r, g, b = l, V, n
-    if (180 <= H < 240):
+    elif (180 <= H < 240):
         r, g, b = l, m, V
-    if (240 <= H < 300):
+    elif (240 <= H < 300):
         r, g, b = n, l, V
-    if (300 <= H < 360):
+    elif (300 <= H < 360):
         r, g, b = V, l, m
-    
+        
     dst[tx, ty, 0], dst[tx, ty, 1], dst[tx, ty, 2]= r, g, b
-
-
 
 for block_size in block_size_list:
     # Load and ignore alpha channel
@@ -93,14 +98,15 @@ for block_size in block_size_list:
     h, w, c = img.shape
 
     out = np.array(img, copy=True)
+    out2 = np.zeros(img.shape)
 
     grid_size = dual_tuple_division(block_size, (h, w))
     start = time.time()
 
     A = cuda.to_device(img)
     B = cuda.to_device(out)
+    C = cuda.to_device(out2)
     rgb_hsv[grid_size, block_size](A, B)
-    hsv_rgb[grid_size, block_size](B, A)
-    B = A
+    hsv_rgb[grid_size, block_size](B, C)
 
-    plt.imsave('output.png',B.copy_to_host())
+    plt.imsave('output-lab8.png',C.copy_to_host())
